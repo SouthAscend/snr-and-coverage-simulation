@@ -891,9 +891,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimulationManager
   satellitePrefab: {fileID: 4374146511330005654, guid: ea804c3395b0be648b0d24f6750c1e2e, type: 3}
-  leoCount: 1000
-  meoCount: 1000
-  geoCount: 1000
+  leoCount: 50
+  meoCount: 0
+  geoCount: 0
   timeScale: 1000
   gMaterial: {fileID: 2100000, guid: a3ae4ed8e7bdf98438ac0f5f9a243605, type: 2}
   rMaterial: {fileID: 2100000, guid: fa0a88bc7ac41164098f26b86760deca, type: 2}
