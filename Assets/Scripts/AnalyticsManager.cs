@@ -1,41 +1,38 @@
 using UnityEngine;
+using TMPro; // Required for UI Text
 using System.Linq;
-using System.Collections.Generic;
 
 public class AnalyticsManager : MonoBehaviour
 {
     private GroundStationProbe[] manualProbes;
     private bool probesFound = false;
 
-    [Header("Update Frequency")]
-    [Tooltip("How often to log the summary (in frames)")]
-    public int logFrequency = 120;
+    [Header("UI Reference")]
+    public TMP_Text statsText;
 
     void Start()
     {
-        // Small delay to let probes initialize
+        // Small delay to let probes and SimulationManager initialize
         Invoke("CacheManualProbes", 0.5f);
     }
 
     void CacheManualProbes()
     {
-        // Find all ground stations once
         manualProbes = Object.FindObjectsByType<GroundStationProbe>(FindObjectsSortMode.None);
         
         if (manualProbes.Length > 0)
         {
             probesFound = true;
-            Debug.Log($"<color=cyan>AnalyticsManager:</color> Successfully cached {manualProbes.Length} ground stations.");
         }
         else
         {
-            Debug.LogWarning("AnalyticsManager: No GroundStationProbe objects found in the scene.");
+            Debug.LogWarning("AnalyticsManager: No ground stations found to track.");
         }
     }
 
     void Update()
     {
-        if (!probesFound) return;
+        if (!probesFound || statsText == null) return;
 
         int coveredCount = 0;
         float totalSnR = 0f;
@@ -54,20 +51,15 @@ public class AnalyticsManager : MonoBehaviour
         float coverageRate = ((float)coveredCount / manualProbes.Length) * 100f;
         float avgSnR = activeLinkCount > 0 ? totalSnR / activeLinkCount : 0f;
 
-        // Log periodically
-        if (Time.frameCount % logFrequency == 0)
-        {
-            DisplaySummary(coverageRate, avgSnR, manualProbes.Length, coveredCount);
-        }
+        UpdateUI(coverageRate, avgSnR, manualProbes.Length, coveredCount);
     }
 
-    void DisplaySummary(float rate, float snr, int total, int covered)
+    void UpdateUI(float rate, float snr, int total, int covered)
     {
-        Debug.Log($"<b>--- CONSTELLATION PERFORMANCE ---</b>\n");
-        Debug.Log($"Total Test Points: {total}\n");
-        Debug.Log($"Points Covered: {covered}\n");
-        Debug.Log($"Coverage Rate: {rate:F1}%\n");
-        Debug.Log($"Average SnR: {snr:F2} dB\n");
-        Debug.Log($"Active Satellites: {SimulationManager.ActiveSatellites.Count}");
+        statsText.text = $"<b>CONSTELLATION PERFORMANCE</b>\n" +
+                         $"Coverage Rate: {rate:F1}%\n" +
+                         $"Avg SnR: {snr:F2} dB\n" +
+                         $"Points: {covered}/{total}\n" +
+                         $"Satellites: {SimulationManager.ActiveSatellites.Count}";
     }
 }

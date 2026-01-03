@@ -23,11 +23,19 @@ public class SimulationManager : MonoBehaviour
     public float timeScale = 100f; // 1 second in real life = 100 seconds in sim
     public static float simulationTimeScale;
 
+    [Header("Visual Feedback")]
+    [SerializeField] public Material gMaterial;
+    [SerializeField] public Material rMaterial;
+    [SerializeField] public static Material greenMaterial;
+    [SerializeField] public static Material redMaterial;
+
     void Start()
     {
         SpawnOptimalOrbit(leoCount, OrbitType.LEO);
         SpawnOptimalOrbit(meoCount, OrbitType.MEO);
         SpawnOptimalOrbit(geoCount, OrbitType.GEO);
+        greenMaterial = gMaterial;
+        redMaterial = rMaterial;
     }
 
     void Update()

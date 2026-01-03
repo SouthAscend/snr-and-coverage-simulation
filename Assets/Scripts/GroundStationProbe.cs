@@ -2,34 +2,50 @@ using UnityEngine;
 
 public class GroundStationProbe : MonoBehaviour
 {
-    public float maskAngle = 10f;
+    [Header("Constellation Settings")]
+    public float maskAngle = 10f; //
     public float txPower_dBm = 40f;
 
+    [Header("Live Data")]
     public bool isCovered;
     public float bestSnR;
     
     private Vector3 meshWorldPos;
+    private MeshRenderer cubeRenderer;
 
     void Start()
     {
-        Transform mesh = transform.Find("Mesh");
-        meshWorldPos = mesh != null ? mesh.position : transform.position;
-        meshWorldPos.x *= 1000.0f;
-        meshWorldPos.y *= 1000.0f;
-        meshWorldPos.z *= 1000.0f;
+        Transform meshTransform = transform.Find("Mesh");
+        meshWorldPos = meshTransform != null ? meshTransform.position : transform.position;
+        
+        meshWorldPos *= 1000.0f;
+
+        Transform cubeTransform = transform.Find("Mesh/Cube");
+        if (cubeTransform != null)
+        {
+            cubeRenderer = cubeTransform.GetComponent<MeshRenderer>();
+        }
+        else
+        {
+            Debug.LogError($"{gameObject.name}: Could not find Mesh/Cube path!");
+        }
     }
 
     void Update()
     {
+        if (cubeRenderer == null) return;
+
         int count = 0;
         float maxSnR = -999f;
         bool hasSignal = false;
 
+        // Iteration through the global registry
         foreach (var sat in SimulationManager.ActiveSatellites)
         {
-            Vector3 satPos = new Vector3(sat.transform.position.x * 1000.0f, sat.transform.position.y * 1000.0f, sat.transform.position.z * 1000.0f);
+            Vector3 satPos = sat.transform.position * 1000.0f;
             float elev = OrbitUtils.GetElevationAngle(meshWorldPos, satPos);
 
+            // Visibility check based on Mask Angle
             if (elev >= maskAngle)
             {
                 hasSignal = true;
@@ -44,14 +60,17 @@ public class GroundStationProbe : MonoBehaviour
         isCovered = hasSignal;
         bestSnR = hasSignal ? maxSnR : 0f;
 
-        Vector3 drawPos = new Vector3(meshWorldPos.x / 1000.0f, meshWorldPos.y / 1000.0f, meshWorldPos.z / 1000.0f);
-        Debug.DrawRay(drawPos, drawPos.normalized * 0.5f, isCovered ? Color.green : Color.red);
+        cubeRenderer.sharedMaterial = isCovered ? SimulationManager.greenMaterial : SimulationManager.redMaterial;
     }
 
     float CalculateSnR(float dist, float elev)
     {
+        // Logarithmic path loss calculation
         float pathLoss = 20 * Mathf.Log10(dist + 1.0f);
+        
+        // Atmospheric penalty interpolation based on elevation
         float atmPenalty = Mathf.Lerp(10f, 0f, elev / 90f);
+        
         return txPower_dBm - pathLoss - atmPenalty;
     }
 }
