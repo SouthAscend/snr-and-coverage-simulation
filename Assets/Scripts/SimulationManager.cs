@@ -23,19 +23,34 @@ public class SimulationManager : MonoBehaviour
     public float timeScale = 100f; // 1 second in real life = 100 seconds in sim
     public static float simulationTimeScale;
 
+    [Header("Reliability Settings")]
+    public float LEO_lambda = 1f / (6f*3600f);
+    public float LEO_mu = 1f / (10f*60f);
+    public float MEO_lambda = 1f / (12f*3600f);
+    public float MEO_mu = 1f / (8f*60f);
+    public float GEO_lambda = 1f / (48f*3600f);
+    public float GEO_mu = 1f / (5f*60f);
+
     [Header("Visual Feedback")]
-    [SerializeField] public Material gMaterial;
-    [SerializeField] public Material rMaterial;
-    [SerializeField] public static Material greenMaterial;
-    [SerializeField] public static Material redMaterial;
+    [SerializeField] public Material gMaterialProbe;
+    [SerializeField] public Material rMaterialProbe;
+    [SerializeField] public static Material greenMaterialProbe;
+    [SerializeField] public static Material redMaterialProbe;
+    [SerializeField] public Material gMaterialSat;
+    [SerializeField] public Material rMaterialSat;
+    [SerializeField] public static Material greenMaterialSat;
+    [SerializeField] public static Material redMaterialSat;
 
     void Start()
     {
+        ActiveSatellites.Clear();
         SpawnOptimalOrbit(leoCount, OrbitType.LEO);
         SpawnOptimalOrbit(meoCount, OrbitType.MEO);
         SpawnOptimalOrbit(geoCount, OrbitType.GEO);
-        greenMaterial = gMaterial;
-        redMaterial = rMaterial;
+        greenMaterialProbe = gMaterialProbe;
+        redMaterialProbe = rMaterialProbe;
+        greenMaterialSat = gMaterialSat;
+        redMaterialSat = rMaterialSat;
     }
 
     void Update()
@@ -52,15 +67,15 @@ public class SimulationManager : MonoBehaviour
         switch (type)
         {
             case OrbitType.LEO:
-                minAlt = LEO_MIN; maxAlt = LEO_MAX; inclination = 53f; 
+                minAlt = LEO_MIN; maxAlt = LEO_MAX; inclination = 53f;
                 parent = new GameObject("LEOs");
                 break;
             case OrbitType.MEO:
-                minAlt = MEO_MIN; maxAlt = MEO_MAX; inclination = 55f; 
+                minAlt = MEO_MIN; maxAlt = MEO_MAX; inclination = 55f;
                 parent = new GameObject("MEOs");
                 break;
             case OrbitType.GEO:
-                minAlt = GEO_ALT; maxAlt = GEO_ALT; inclination = 0f; 
+                minAlt = GEO_ALT; maxAlt = GEO_ALT; inclination = 0f;
                 parent = new GameObject("GEOs");
                 break;
             default: return;
@@ -82,17 +97,21 @@ public class SimulationManager : MonoBehaviour
                 if (spawnedSoFar >= totalCount) break;
 
                 float altitude = Random.Range(minAlt, maxAlt);
-                float phaseShift = (360f / totalCount) * p; 
+                float phaseShift = (360f / totalCount) * p;
                 float currentAngle = ((360f / satsPerPlane) * s) + phaseShift;
 
-                Vector3 spawnPos = OrbitUtils.GetPosition(altitude, inclination, raan, currentAngle);
-                spawnPos.x *= 0.001f;
-                spawnPos.y *= 0.001f;
-                spawnPos.z *= 0.001f;
-                
-                GameObject satObj = Instantiate(satellitePrefab, spawnPos, Quaternion.identity, parent.transform);
+                Vector3 spawnPos_km = OrbitUtils.GetPosition(altitude, inclination, raan, currentAngle);
+
+                Vector3 spawnPos_unity = spawnPos_km * 0.001f;
+
+                GameObject satObj = Instantiate(satellitePrefab, spawnPos_unity, Quaternion.identity, parent.transform);
+
                 SatelliteController controller = satObj.GetComponent<SatelliteController>();
-                
+
+                if (type == OrbitType.LEO) { controller.lambda = LEO_lambda; controller.mu = LEO_mu; } // fail every ~6h, recover ~10m
+                if (type == OrbitType.MEO) { controller.lambda = MEO_lambda; controller.mu = MEO_mu; }
+                if (type == OrbitType.GEO) { controller.lambda = GEO_lambda; controller.mu = GEO_mu; }
+
                 controller.altitude = altitude;
                 controller.inclination = inclination;
                 controller.raan = raan;

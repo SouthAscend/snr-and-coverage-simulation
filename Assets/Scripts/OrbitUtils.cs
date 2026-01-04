@@ -1,9 +1,8 @@
 using UnityEngine;
 
 public static class OrbitUtils {
-    // Physical constants (1 unit = 1 km)
     public const float EARTH_RADIUS = 6371.0f; 
-    public const float MU = 398600.44f; // Standard gravitational parameter
+    public const float MU = 398600.44f; 
 
     // Orbital period using Kepler's 3rd law
     public static float GetOrbitalPeriod(float altitude) {

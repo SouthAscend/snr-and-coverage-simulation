@@ -3,8 +3,13 @@ using UnityEngine;
 public class GroundStationProbe : MonoBehaviour
 {
     [Header("Constellation Settings")]
-    public float maskAngle = 10f; //
-    public float txPower_dBm = 40f;
+    public float maskAngle = 10f;
+    public float eirp_dBm = 40f;
+
+    [Header("Link Budget Settings")]
+    public float frequency_MHz = 12000f;  
+    public float bandwidth_Hz = 20e6f;     
+    public float noiseFigure_dB = 3f;       
 
     [Header("Live Data")]
     public bool isCovered;
@@ -16,9 +21,11 @@ public class GroundStationProbe : MonoBehaviour
     void Start()
     {
         Transform meshTransform = transform.Find("Mesh");
-        meshWorldPos = meshTransform != null ? meshTransform.position : transform.position;
-        
-        meshWorldPos *= 1000.0f;
+        Vector3 worldPosUnity = meshTransform != null ? meshTransform.position : transform.position;
+
+        Vector3 dir = (worldPosUnity - Vector3.zero).normalized;
+
+        meshWorldPos = dir * OrbitUtils.EARTH_RADIUS;
 
         Transform cubeTransform = transform.Find("Mesh/Cube");
         if (cubeTransform != null)
@@ -42,35 +49,42 @@ public class GroundStationProbe : MonoBehaviour
         // Iteration through the global registry
         foreach (var sat in SimulationManager.ActiveSatellites)
         {
-            Vector3 satPos = sat.transform.position * 1000.0f;
-            float elev = OrbitUtils.GetElevationAngle(meshWorldPos, satPos);
+            if (!sat.isOnline) continue;
+            Vector3 satPos_km = sat.transform.position * 1000.0f;
 
-            // Visibility check based on Mask Angle
+            float elev = OrbitUtils.GetElevationAngle(meshWorldPos, satPos_km);
+
             if (elev >= maskAngle)
             {
                 hasSignal = true;
                 count++;
 
-                float dist = Vector3.Distance(meshWorldPos, satPos);
-                float snr = CalculateSnR(dist, elev);
+                float dist_km = Vector3.Distance(meshWorldPos, satPos_km);
+                float snr = CalculateSnR(dist_km, elev);
                 if (snr > maxSnR) maxSnR = snr;
             }
+
         }
 
         isCovered = hasSignal;
         bestSnR = hasSignal ? maxSnR : 0f;
 
-        cubeRenderer.sharedMaterial = isCovered ? SimulationManager.greenMaterial : SimulationManager.redMaterial;
+        cubeRenderer.sharedMaterial = isCovered ? SimulationManager.greenMaterialProbe : SimulationManager.redMaterialProbe;
     }
 
-    float CalculateSnR(float dist, float elev)
+    float CalculateSnR(float dist_km, float elev_deg)
     {
-        // Logarithmic path loss calculation
-        float pathLoss = 20 * Mathf.Log10(dist + 1.0f);
-        
-        // Atmospheric penalty interpolation based on elevation
-        float atmPenalty = Mathf.Lerp(10f, 0f, elev / 90f);
-        
-        return txPower_dBm - pathLoss - atmPenalty;
+        dist_km = Mathf.Max(dist_km, 0.001f);
+
+        float fspl_dB = 32.44f + 20f * Mathf.Log10(dist_km) + 20f * Mathf.Log10(Mathf.Max(frequency_MHz, 0.001f));
+
+        float atmPenalty_dB = Mathf.Lerp(10f, 0f, Mathf.Clamp01(elev_deg / 90f));
+
+        float pr_dBm = eirp_dBm - fspl_dB - atmPenalty_dB;
+
+        float noise_dBm = -174f + 10f * Mathf.Log10(Mathf.Max(bandwidth_Hz, 1f)) + noiseFigure_dB;
+    
+        return pr_dBm - noise_dBm;
     }
+
 }
